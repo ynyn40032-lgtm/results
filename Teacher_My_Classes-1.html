@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نتائج فصلي</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  *{ box-sizing:border-box; }
+  :root{ --navy:#0F2440; --gold:#C7963E; --cream:#FBF8F0; --line:#EAE1C7; --muted:#7C8A7E; --ok:#0F5132; --okbg:#DDF0E3; --bad:#A3312B; --badbg:#F6DCDA; }
+  html,body{ margin:0; min-height:100%; }
+  body{ background:var(--cream); color:var(--navy); font-family:'Cairo','Tajawal',system-ui,sans-serif; padding-bottom:env(safe-area-inset-bottom,0); }
+  header{ background:linear-gradient(160deg,#0F2440,#1E3F66); color:#F4EFDC; padding:calc(14px + env(safe-area-inset-top,0)) 16px 14px; border-bottom:3px solid var(--gold); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  header h1{ margin:0; font-size:20px; }
+  header small{ display:block; font-size:12px; opacity:.8; direction:ltr; text-align:right; }
+  #logoutBtn{ background:rgba(255,255,255,.15); color:#fff; border:0; border-radius:999px; padding:8px 14px; font:inherit; font-size:13px; cursor:pointer; }
+  main{ max-width:720px; margin:0 auto; padding:14px; }
+  #login{ position:fixed; inset:0; z-index:10; background:linear-gradient(160deg,#0F2440,#1E3F66); display:flex; align-items:center; justify-content:center; padding:20px; }
+  #login .box{ width:100%; max-width:360px; background:var(--cream); border-radius:20px; border-top:4px solid var(--gold); padding:24px 20px; text-align:center; }
+  #login h2{ margin:0 0 4px; }
+  #login p{ margin:0 0 16px; color:var(--muted); font-size:14px; }
+  input{ width:100%; padding:12px; margin-bottom:10px; border:1.5px solid var(--line); border-radius:10px; font:inherit; font-size:16px; background:#fff; }
+  .primary{ width:100%; padding:13px; background:var(--navy); color:#F4EFDC; border:0; border-radius:10px; font:inherit; font-size:16px; font-weight:700; cursor:pointer; }
+  .primary:disabled{ opacity:.6; }
+  #loginMsg{ color:var(--bad); font-size:14px; min-height:20px; margin-top:10px; }
+  #forgot{ color:#9C6F22; font-size:13px; }
+  .chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:10px; }
+  .chip{ flex:0 0 auto; border:1.5px solid var(--line); background:#fff; color:var(--navy); border-radius:999px; padding:7px 14px; font:inherit; font-size:14px; cursor:pointer; white-space:nowrap; }
+  .chip.on{ background:var(--navy); color:#F4EFDC; border-color:var(--navy); }
+  .sum{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .sum div{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 4px; text-align:center; font-size:13px; color:var(--muted); }
+  .sum b{ display:block; font-size:22px; color:var(--navy); }
+  .sum .g b{ color:var(--ok); } .sum .r b{ color:var(--bad); }
+  .cls{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:12px; }
+  .cls h3{ margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:17px; }
+  .cls h3 span{ font-size:13px; font-weight:600; }
+  .row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 0; border-top:1px solid var(--line); }
+  .row .meta{ font-size:12px; color:var(--muted); margin-top:2px; line-height:1.6; }
+  .row .note{ font-size:12.5px; margin-top:3px; background:#FFF8E6; border-radius:8px; padding:4px 8px; }
+  .badge{ display:inline-block; border-radius:999px; padding:2px 10px; font-weight:700; font-size:13px; white-space:nowrap; }
+  .badge.ok{ background:var(--okbg); color:var(--ok); } .badge.bad{ background:var(--badbg); color:var(--bad); }
+  .score{ text-align:left; font-size:12px; color:var(--muted); }
+  .new{ display:inline-block; background:var(--bad); color:#fff; border-radius:999px; font-size:11px; padding:0 7px; margin-inline-start:6px; }
+  .empty{ text-align:center; color:var(--muted); padding:40px 10px; line-height:1.9; }
+</style>
+</head>
+<body>
+<div id="login">
+  <div class="box">
+    <h2>📖 نتائج فصلي</h2>
+    <p>ادخلي بإيميلك لتشوفي اختبارات فصولك</p>
+    <input id="em" type="email" dir="ltr" placeholder="الإيميل" autocomplete="username">
+    <input id="pw" type="password" dir="ltr" placeholder="كلمة السر" autocomplete="current-password">
+    <button id="loginBtn" class="primary" type="button">دخول</button>
+    <div id="loginMsg"></div>
+    <a id="forgot" href="#">نسيت كلمة السر؟</a>
+  </div>
+</div>
+
+<header>
+  <div><h1>📖 نتائج فصلي</h1><small id="who"></small></div>
+  <button id="logoutBtn" type="button">خروج</button>
+</header>
+
+<main>
+  <div id="chips" class="chips"></div>
+  <div id="sum" class="sum"></div>
+  <div id="list"></div>
+</main>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAjr3fKiGeWU2KOftf52eGogRD2OHq5mpo",
+  authDomain: "quran-tests-645cd.firebaseapp.com",
+  projectId: "quran-tests-645cd",
+  storageBucket: "quran-tests-645cd.firebasestorage.app",
+  messagingSenderId: "946216956918",
+  appId: "1:946216956918:web:1946eb27cff9772dae8dd7"
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SEEN_KEY = 'teacher:seen';
+let seen = {}, results = [], filter = 'all', first = true, unsub = null;
+try{ seen = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; }catch(e){}
+
+function authErr(e){
+  const c = (e && e.code) || '';
+  if(/invalid-credential|wrong-password|user-not-found|invalid-email/.test(c)) return 'الإيميل أو كلمة السر غير صحيحة';
+  if(/too-many/.test(c)) return 'محاولات كتير، استني شوية وجرّبي تاني';
+  if(/network/.test(c)) return 'مفيش اتصال بالنت';
+  return 'حصلت مشكلة، جرّبي تاني';
+}
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth(), db = firebase.firestore();
+
+$('loginBtn').onclick = async () => {
+  const em = $('em').value.trim(), pw = $('pw').value;
+  if(!em || !pw){ $('loginMsg').textContent = 'اكتبي الإيميل وكلمة السر'; return; }
+  $('loginBtn').disabled = true; $('loginMsg').textContent = 'جاري الدخول...';
+  try{ await auth.signInWithEmailAndPassword(em, pw); $('loginMsg').textContent = ''; }
+  catch(e){ $('loginMsg').textContent = authErr(e); }
+  $('loginBtn').disabled = false;
+};
+$('forgot').onclick = async ev => {
+  ev.preventDefault();
+  const em = $('em').value.trim();
+  if(!em){ $('loginMsg').textContent = 'اكتبي الإيميل الأول'; return; }
+  try{ await auth.sendPasswordResetEmail(em); $('loginMsg').textContent = 'اتبعتلك رابط تغيير كلمة السر على الإيميل'; }
+  catch(e){ $('loginMsg').textContent = authErr(e); }
+};
+$('logoutBtn').onclick = async () => { await auth.signOut(); location.reload(); };
+
+auth.onAuthStateChanged(u => {
+  if(unsub){ unsub(); unsub = null; }
+  if(!u){ $('login').style.display = 'flex'; return; }
+  $('login').style.display = 'none';
+  $('who').textContent = u.email || '';
+  // كل معلمة بتشوف بس النتايج اللي ownerEmail بتاعها = إيميلها
+  unsub = db.collection('classResults')
+    .where('ownerEmail', '==', String(u.email || '').toLowerCase())
+    .onSnapshot(snap => {
+      const list = []; snap.forEach(d => { const x = d.data(); x.id = d.id; list.push(x); });
+      results = list;
+      render();
+      if(first){ first = false; }
+    }, err => {
+      $('list').innerHTML = '<div class="empty">⚠️ ماقدرتش أحمّل النتايج.<br>' +
+        (err && err.code === 'permission-denied' ? 'الصلاحيات في قاعدة البيانات مش مفعّلة للمعلمات بعد (اتأكدي من قواعد Firestore).' : 'اتأكدي من النت وجرّبي تاني.') + '</div>';
+    });
+});
+
+function render(){
+  const classes = [...new Set(results.map(r => r.className).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+  if(filter !== 'all' && !classes.includes(filter)) filter = 'all';
+
+  $('chips').innerHTML = classes.length > 1
+    ? ['all'].concat(classes).map(c => `<button type="button" class="chip ${c === filter ? 'on' : ''}" data-c="${esc(c)}">${c === 'all' ? 'كل فصولي' : esc(c)}</button>`).join('')
+    : '';
+
+  const shown = results.filter(r => filter === 'all' || r.className === filter);
+  const ok = shown.filter(r => r.status === 'ناجح').length;
+  $('sum').innerHTML = shown.length
+    ? `<div><b>${shown.length}</b>اختبار</div><div class="g"><b>${ok}</b>ناجح</div><div class="r"><b>${shown.length - ok}</b>راسب</div>`
+    : '';
+
+  if(!shown.length){
+    $('list').innerHTML = '<div class="empty">📭 مفيش اختبارات لفصولك لسه.<br>أول ما يتسجل اختبار لفصلك هيظهر هنا تلقائيًا.</div>';
+    return;
+  }
+  const by = {};
+  shown.forEach(r => { (by[r.className] = by[r.className] || []).push(r); });
+  $('list').innerHTML = Object.keys(by).sort((a, b) => a.localeCompare(b, 'ar')).map(cn => {
+    const rows = by[cn].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    const o = rows.filter(r => r.status === 'ناجح').length;
+    return `<div class="cls"><h3><span style="font-size:17px">${esc(cn)}</span><span>✅ ${o} ناجح · ❌ ${rows.length - o} راسب</span></h3>` +
+      rows.map(r => {
+        const pass = r.status === 'ناجح';
+        const label = r.gender === 'f' || r.gender === 'أنثى' || r.gender === 'بنت' ? (pass ? 'ناجحة' : 'راسبة') : (pass ? 'ناجح' : 'راسب');
+        const isNew = !seen[r.id];
+        const where = r.app === 'surah' ? 'سورة جديدة' : (r.testType || '');
+        const part = [r.hizb !== '' && r.hizb != null ? 'حزب ' + r.hizb : '', r.rub ? 'ربع ' + r.rub : ''].filter(Boolean).join(' · ');
+        return `<div class="row"><div>
+            <b>${esc(r.student)}</b>${isNew ? '<span class="new">جديد</span>' : ''}
+            <div class="meta">${esc(r.date || '')}${where ? ' · ' + esc(where) : ''}${part ? ' · ' + esc(part) : ''}${r.supervisorName ? ' · المختبِرة: ' + esc(r.supervisorName) : ''}${r.demotedTo ? ' · 🔻 اتنقل لـ ' + esc(r.demotedTo) : ''}</div>
+            ${r.notes ? `<div class="note">📝 ${esc(r.notes)}</div>` : ''}
+          </div>
+          <div class="score"><span class="badge ${pass ? 'ok' : 'bad'}">${label}</span><div>${esc(r.grade)} · أخطاء ${esc(r.mistakes || 0)}</div></div></div>`;
+      }).join('') + '</div>';
+  }).join('');
+
+  // علّمي اللي ظهر على إنه اتشاف
+  setTimeout(() => {
+    shown.forEach(r => { seen[r.id] = 1; });
+    try{ localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); }catch(e){}
+  }, 4000);
+}
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  filter = b.dataset.c; render();
+});
+</script>
+</body>
+</html>
